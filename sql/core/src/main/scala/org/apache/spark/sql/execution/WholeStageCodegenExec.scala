@@ -130,7 +130,7 @@ trait CodegenSupport extends SparkPlan {
           |$evaluateInputs
           |${ev.code}
          """.stripMargin
-        ExprCode(code, FalseLiteral, ev.value)
+        ExprCode(code, ev.isNull, ev.value)
       } else {
         // There are no columns
         ExprCode.forNonNullValue(JavaCode.variable("unsafeRow", classOf[UnsafeRow]))
@@ -662,6 +662,7 @@ case class WholeStageCodegenExec(child: SparkPlan)(val codegenStageId: Int)
       s"""
         protected void processNext() throws java.io.IOException {
           ${code.trim}
+          ${ctx.appendResultState()}
         }
        """, inlineToOuterClass = true)
 
@@ -790,9 +791,15 @@ case class WholeStageCodegenExec(child: SparkPlan)(val codegenStageId: Int)
     } else {
       ""
     }
+
+    val doAppend = if (ctx.isSetResultState()) {
+      s""
+    } else {
+      s"append(${row.value}$doCopy);"
+    }
     s"""
       |${row.code}
-      |append(${row.value}$doCopy);
+      |$doAppend
      """.stripMargin.trim
   }
 

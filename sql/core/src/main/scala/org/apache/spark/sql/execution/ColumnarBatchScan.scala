@@ -125,6 +125,8 @@ private[sql] trait ColumnarBatchScan extends CodegenSupport {
     val localIdx = ctx.freshName("localIdx")
     val localEnd = ctx.freshName("localEnd")
     val numRows = ctx.freshName("numRows")
+    //val columnFields = ctx.addMutableState("DataType[]", "columnFields",
+    //  v => s"$v = {${output.map { case attr => attr.dataType) }.mkString(',')}};")
     val shouldStop = if (parent.needStopCheck) {
       s"if (shouldStop()) { $idx = $rowidx + 1; return; }"
     } else {

@@ -21,6 +21,7 @@ import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
+import org.apache.spark.sql.catalyst.vectorized.arrow.ArrowUtils
 import org.apache.spark.sql.types._
 
 class ArrowUtilsSuite extends SparkFunSuite {

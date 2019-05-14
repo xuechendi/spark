@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql.execution.arrow
+package org.apache.spark.sql.catalyst.vectorized.arrow
 
 import scala.collection.JavaConverters._
 

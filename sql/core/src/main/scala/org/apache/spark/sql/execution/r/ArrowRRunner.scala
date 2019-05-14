@@ -31,7 +31,8 @@ import org.apache.spark.api.r._
 import org.apache.spark.api.r.SpecialLengths
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.execution.arrow.{ArrowUtils, ArrowWriter}
+import org.apache.spark.sql.catalyst.vectorized.arrow.ArrowUtils
+import org.apache.spark.sql.execution.arrow.ArrowWriter
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch, ColumnVector}
 import org.apache.spark.util.Utils

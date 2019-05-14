@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql.vectorized;
+package org.apache.spark.sql.catalyst.vectorized.arrow;
 
 import io.netty.buffer.ArrowBuf;
 import org.apache.arrow.vector.*;
@@ -32,22 +32,19 @@ import org.apache.spark.unsafe.types.UTF8String;
  * supported.
  */
 @Evolving
-public final class ArrowColumnVector extends ColumnVector {
+public final class ArrowFieldReader {
 
   private final ArrowVectorAccessor accessor;
-  private ArrowColumnVector[] childColumns;
+  private ArrowFieldReader[] childColumns;
 
-  @Override
   public boolean hasNull() {
     return accessor.getNullCount() > 0;
   }
 
-  @Override
   public int numNulls() {
     return accessor.getNullCount();
   }
 
-  @Override
   public void close() {
     if (childColumns != null) {
       for (int i = 0; i < childColumns.length; i++) {
@@ -59,80 +56,65 @@ public final class ArrowColumnVector extends ColumnVector {
     accessor.close();
   }
 
-  @Override
   public boolean isNullAt(int rowId) {
     return accessor.isNullAt(rowId);
   }
 
-  @Override
   public boolean getBoolean(int rowId) {
     return accessor.getBoolean(rowId);
   }
 
-  @Override
   public byte getByte(int rowId) {
     return accessor.getByte(rowId);
   }
 
-  @Override
   public short getShort(int rowId) {
     return accessor.getShort(rowId);
   }
 
-  @Override
   public int getInt(int rowId) {
     return accessor.getInt(rowId);
   }
 
-  @Override
   public long getLong(int rowId) {
     return accessor.getLong(rowId);
   }
 
-  @Override
   public float getFloat(int rowId) {
     return accessor.getFloat(rowId);
   }
 
-  @Override
   public double getDouble(int rowId) {
     return accessor.getDouble(rowId);
   }
 
-  @Override
   public Decimal getDecimal(int rowId, int precision, int scale) {
     if (isNullAt(rowId)) return null;
     return accessor.getDecimal(rowId, precision, scale);
   }
 
-  @Override
   public UTF8String getUTF8String(int rowId) {
     if (isNullAt(rowId)) return null;
     return accessor.getUTF8String(rowId);
   }
 
-  @Override
   public byte[] getBinary(int rowId) {
     if (isNullAt(rowId)) return null;
     return accessor.getBinary(rowId);
   }
 
-  @Override
-  public ColumnarArray getArray(int rowId) {
+  /*public ColumnarArray getArray(int rowId) {
     if (isNullAt(rowId)) return null;
     return accessor.getArray(rowId);
-  }
+  }*/
 
-  @Override
-  public ColumnarMap getMap(int rowId) {
+  /*public ColumnarMap getMap(int rowId) {
     throw new UnsupportedOperationException();
-  }
+  }*/
 
-  @Override
-  public ArrowColumnVector getChild(int ordinal) { return childColumns[ordinal]; }
+  public ArrowFieldReader getChild(int ordinal) { return childColumns[ordinal]; }
 
-  public ArrowColumnVector(ValueVector vector) {
-    super(ArrowUtils.fromArrowField(vector.getField()));
+  public ArrowFieldReader(ValueVector vector) {
 
     if (vector instanceof BitVector) {
       accessor = new BooleanAccessor((BitVector) vector);
@@ -158,16 +140,16 @@ public final class ArrowColumnVector extends ColumnVector {
       accessor = new DateAccessor((DateDayVector) vector);
     } else if (vector instanceof TimeStampMicroTZVector) {
       accessor = new TimestampAccessor((TimeStampMicroTZVector) vector);
-    } else if (vector instanceof ListVector) {
+    } /*else if (vector instanceof ListVector) {
       ListVector listVector = (ListVector) vector;
       accessor = new ArrayAccessor(listVector);
-    } else if (vector instanceof StructVector) {
+    }*/ else if (vector instanceof StructVector) {
       StructVector structVector = (StructVector) vector;
       accessor = new StructAccessor(structVector);
 
-      childColumns = new ArrowColumnVector[structVector.size()];
+      childColumns = new ArrowFieldReader[structVector.size()];
       for (int i = 0; i < childColumns.length; ++i) {
-        childColumns[i] = new ArrowColumnVector(structVector.getVectorById(i));
+        childColumns[i] = new ArrowFieldReader(structVector.getVectorById(i));
       }
     } else {
       throw new UnsupportedOperationException();
@@ -235,9 +217,9 @@ public final class ArrowColumnVector extends ColumnVector {
       throw new UnsupportedOperationException();
     }
 
-    ColumnarArray getArray(int rowId) {
+    /*ColumnarArray getArray(int rowId) {
       throw new UnsupportedOperationException();
-    }
+    }*/
   }
 
   private static class BooleanAccessor extends ArrowVectorAccessor {
@@ -429,15 +411,15 @@ public final class ArrowColumnVector extends ColumnVector {
     }
   }
 
-  private static class ArrayAccessor extends ArrowVectorAccessor {
+  /*private static class ArrayAccessor extends ArrowVectorAccessor {
 
     private final ListVector accessor;
-    private final ArrowColumnVector arrayData;
+    private final ArrowFieldReader arrayData;
 
     ArrayAccessor(ListVector vector) {
       super(vector);
       this.accessor = vector;
-      this.arrayData = new ArrowColumnVector(vector.getDataVector());
+      this.arrayData = new ArrowFieldReader(vector.getDataVector());
     }
 
     @Override
@@ -458,12 +440,12 @@ public final class ArrowColumnVector extends ColumnVector {
       int end = offsets.getInt(index + ListVector.OFFSET_WIDTH);
       return new ColumnarArray(arrayData, start, end - start);
     }
-  }
+  }*/
 
   /**
    * Any call to "get" method will throw UnsupportedOperationException.
    *
-   * Access struct values in a ArrowColumnVector doesn't use this accessor. Instead, it uses
+   * Access struct values in a ArrowFieldReader doesn't use this accessor. Instead, it uses
    * getStruct() method defined in the parent class. Any call to "get" method in this class is a
    * bug in the code.
    *

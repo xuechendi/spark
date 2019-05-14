@@ -40,6 +40,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.codegen.Block._
 import org.apache.spark.sql.catalyst.util.{ArrayData, GenericArrayData, MapData}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils._
+import org.apache.spark.sql.catalyst.vectorized.arrow.ArrowFormatColumnVector;
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.Platform
@@ -186,6 +187,7 @@ class CodegenContext {
 
   // Tracks the names of all the mutable states.
   private val mutableStateNames: mutable.HashSet[String] = mutable.HashSet.empty
+  private var resultState: String = _
 
   /**
    * This class holds a set of names of mutableStateArrays that is used for compacting mutable
@@ -290,6 +292,10 @@ class CodegenContext {
     }
   }
 
+  def setResultState(variableName: String): Unit = {
+    resultState = variableName
+  }
+
   /**
    * Add an immutable state as a field to the generated class only if it does not exist yet a field
    * with that name. This helps reducing the number of the generated class' fields, since the same
@@ -374,6 +380,19 @@ class CodegenContext {
     // The generated initialization code may exceed 64kb function size limit in JVM if there are too
     // many mutable states, so split it into multiple functions.
     splitExpressions(expressions = initCodes, funcName = "init", arguments = Nil)
+  }
+
+  def isSetResultState(): Boolean = {
+    if (resultState != null) return true
+    else return false
+  }
+
+  def appendResultState(): String = {
+    if (isSetResultState()) {
+      s"append($resultState);"
+    } else {
+      s""
+    }
   }
 
   /**
@@ -1266,6 +1285,7 @@ object CodeGenerator extends Logging {
       classOf[Platform].getName,
       classOf[InternalRow].getName,
       classOf[UnsafeRow].getName,
+      classOf[ArrowFormatColumnVector].getName,
       classOf[UTF8String].getName,
       classOf[Decimal].getName,
       classOf[CalendarInterval].getName,

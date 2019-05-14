@@ -35,6 +35,10 @@ public abstract class UnsafeWriter {
   // The offset of the global buffer where we start to write this structure.
   protected int startingOffset;
 
+  protected UnsafeWriter() {
+    this.holder = null;
+  }
+
   protected UnsafeWriter(BufferHolder holder) {
     this.holder = holder;
   }
@@ -50,7 +54,7 @@ public abstract class UnsafeWriter {
     return holder.getBuffer();
   }
 
-  public final void reset() {
+  public void reset() {
     holder.reset();
   }
 
@@ -105,15 +109,15 @@ public abstract class UnsafeWriter {
   public abstract void write(int ordinal, double value);
   public abstract void write(int ordinal, Decimal input, int precision, int scale);
 
-  public final void write(int ordinal, UTF8String input) {
+  public void write(int ordinal, UTF8String input) {
     writeUnalignedBytes(ordinal, input.getBaseObject(), input.getBaseOffset(), input.numBytes());
   }
 
-  public final void write(int ordinal, byte[] input) {
+  public void write(int ordinal, byte[] input) {
     write(ordinal, input, 0, input.length);
   }
 
-  public final void write(int ordinal, byte[] input, int offset, int numBytes) {
+  public void write(int ordinal, byte[] input, int offset, int numBytes) {
     writeUnalignedBytes(ordinal, input, Platform.BYTE_ARRAY_OFFSET + offset, numBytes);
   }
 
@@ -130,7 +134,7 @@ public abstract class UnsafeWriter {
     increaseCursor(roundedSize);
   }
 
-  public final void write(int ordinal, CalendarInterval input) {
+  public void write(int ordinal, CalendarInterval input) {
     // grow the global buffer before writing data.
     grow(16);
 
@@ -144,15 +148,15 @@ public abstract class UnsafeWriter {
     increaseCursor(16);
   }
 
-  public final void write(int ordinal, UnsafeRow row) {
+  public void write(int ordinal, UnsafeRow row) {
     writeAlignedBytes(ordinal, row.getBaseObject(), row.getBaseOffset(), row.getSizeInBytes());
   }
 
-  public final void write(int ordinal, UnsafeMapData map) {
+  public void write(int ordinal, UnsafeMapData map) {
     writeAlignedBytes(ordinal, map.getBaseObject(), map.getBaseOffset(), map.getSizeInBytes());
   }
 
-  public final void write(UnsafeArrayData array) {
+  public void write(UnsafeArrayData array) {
     // Unsafe arrays both can be written as a regular array field or as part of a map. This makes
     // updating the offset and size dependent on the code path, this is why we currently do not
     // provide an method for writing unsafe arrays that also updates the size and offset.
