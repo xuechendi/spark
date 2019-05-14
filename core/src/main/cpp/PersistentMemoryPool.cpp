@@ -15,7 +15,15 @@ PMPool::PMPool(const char* dev, int maxStage, int maxMap, long size):
     worker(&PMPool::process, this) {
 
   const char *pool_layout_name = "pmem_spark_shuffle";
-  cout << "PMPOOL is " << dev << endl;
+  int pid = getpid();
+  cout << "PMPOOL is " << dev << ", pid is " << pid <<  endl;
+  if (dev[8] == '0') {
+      cout << "taskset -p fffffffffffff0000000000000 " << pid << endl;
+      system("sudo taskset -p fffffffffffff0000000000000 %d" + pid);
+  } else {
+      cout << "taskset -p 0000000000000fffffffffffff " << pid << endl;
+      system("sudo taskset -p 0000000000000fffffffffffff %d" + pid);
+  }
   // if this is a fsdax device
   // we need to create 
   // if this is a devdax device
