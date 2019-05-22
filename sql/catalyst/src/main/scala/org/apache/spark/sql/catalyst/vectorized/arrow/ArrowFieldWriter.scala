@@ -83,6 +83,8 @@ abstract class ArrowFieldWriter {
     valueVector.reset()
     count = 0
   }
+
+  def getSizeInBytes(): Int
 }
 
 class BooleanWriter(val valueVector: BitVector) extends ArrowFieldWriter {
@@ -102,6 +104,10 @@ class BooleanWriter(val valueVector: BitVector) extends ArrowFieldWriter {
 
   def setValueImp(input: Int, ordinal: Int): Unit = {
     valueVector.setSafe(count, input)
+  }
+
+  def getSizeInBytes(): Int = {
+    valueVector.getBufferSize()
   }
 }
 
@@ -123,6 +129,10 @@ class ByteWriter(val valueVector: TinyIntVector) extends ArrowFieldWriter {
   def setValueImp(input: Byte, ordinal: Int): Unit = {
     valueVector.setSafe(count, input)
   }
+
+  def getSizeInBytes(): Int = {
+    valueVector.getBufferSize()
+  }
 }
 
 class ShortWriter(val valueVector: SmallIntVector) extends ArrowFieldWriter {
@@ -142,6 +152,10 @@ class ShortWriter(val valueVector: SmallIntVector) extends ArrowFieldWriter {
 
   def setValueImp(input: Short, ordinal: Int): Unit = {
     valueVector.setSafe(count, input)
+  }
+
+  def getSizeInBytes(): Int = {
+    valueVector.getBufferSize()
   }
 }
 
@@ -163,6 +177,10 @@ class IntegerWriter(val valueVector: IntVector) extends ArrowFieldWriter {
   def setValueImp(input: Int, ordinal: Int): Unit = {
     valueVector.setSafe(count, input)
   }
+
+  def getSizeInBytes(): Int = {
+    valueVector.getBufferSize()
+  }
 }
 
 class LongWriter(val valueVector: BigIntVector) extends ArrowFieldWriter {
@@ -182,6 +200,10 @@ class LongWriter(val valueVector: BigIntVector) extends ArrowFieldWriter {
 
   def setValueImp(input: Long, ordinal: Int): Unit = {
     valueVector.setSafe(count, input)
+  }
+
+  def getSizeInBytes(): Int = {
+    valueVector.getBufferSize()
   }
 }
 
@@ -203,6 +225,10 @@ class FloatWriter(val valueVector: Float4Vector) extends ArrowFieldWriter {
   def setValueImp(input: Float, ordinal: Int): Unit = {
     valueVector.setSafe(count, input)
   }
+
+  def getSizeInBytes(): Int = {
+    valueVector.getBufferSize()
+  }
 }
 
 class DoubleWriter(val valueVector: Float8Vector) extends ArrowFieldWriter {
@@ -222,6 +248,10 @@ class DoubleWriter(val valueVector: Float8Vector) extends ArrowFieldWriter {
 
   def setValueImp(input: Double, ordinal: Int): Unit = {
     valueVector.setSafe(count, input)
+  }
+
+  def getSizeInBytes(): Int = {
+    valueVector.getBufferSize()
   }
 }
 
@@ -250,6 +280,10 @@ class DecimalWriter(
       setNull()
     }
   }
+
+  def getSizeInBytes(): Int = {
+    valueVector.getBufferSize()
+  }
 }
 
 class StringWriter(val valueVector: VarCharVector) extends ArrowFieldWriter {
@@ -272,6 +306,10 @@ class StringWriter(val valueVector: VarCharVector) extends ArrowFieldWriter {
     // todo: for off-heap UTF8String, how to pass in to arrow without copy?
     valueVector.setSafe(count, utf8ByteBuffer, utf8ByteBuffer.position(), input.numBytes())
   }
+
+  def getSizeInBytes(): Int = {
+    valueVector.getBufferSize()
+  }
 }
 
 class BinaryWriter( val valueVector: VarBinaryVector) extends ArrowFieldWriter {
@@ -291,6 +329,10 @@ class BinaryWriter( val valueVector: VarBinaryVector) extends ArrowFieldWriter {
 
   def setValueImp(input: Array[Byte], ordinal: Int): Unit = {
     valueVector.setSafe(count, input, 0, input.length)
+  }
+
+  def getSizeInBytes(): Int = {
+    valueVector.getBufferSize()
   }
 }
 
@@ -312,6 +354,10 @@ class DateWriter(val valueVector: DateDayVector) extends ArrowFieldWriter {
   def setValueImp(input: Int, ordinal: Int): Unit = {
     valueVector.setSafe(count, input)
   }
+
+  def getSizeInBytes(): Int = {
+    valueVector.getBufferSize()
+  }
 }
 
 class TimestampWriter(val valueVector: TimeStampMicroTZVector) extends ArrowFieldWriter {
@@ -331,6 +377,10 @@ class TimestampWriter(val valueVector: TimeStampMicroTZVector) extends ArrowFiel
 
   def setValueImp(input: Long, ordinal: Int): Unit = {
     valueVector.setSafe(count, input)
+  }
+
+  def getSizeInBytes(): Int = {
+    valueVector.getBufferSize()
   }
 }
 
@@ -368,6 +418,10 @@ class ArrayWriter(
   override def reset(): Unit = {
     super.reset()
     elementWriter.reset()
+  }
+
+  def getSizeInBytes(): Int = {
+    valueVector.getBufferSize()
   }
 }
 
@@ -411,5 +465,9 @@ class StructWriter(
   override def reset(): Unit = {
     super.reset()
     children.foreach(_.reset())
+  }
+
+  def getSizeInBytes(): Int = {
+    valueVector.getBufferSize()
   }
 }

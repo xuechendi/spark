@@ -36,6 +36,15 @@ public final class ArrowFieldReader {
 
   private final ArrowVectorAccessor accessor;
   private ArrowFieldReader[] childColumns;
+  private int rowId = 0;
+
+  public int getRowId() {
+    return rowId;
+  }
+
+  public boolean isValid() {
+    return !isNullAt();
+  }
 
   public boolean hasNull() {
     return accessor.getNullCount() > 0;
@@ -56,51 +65,68 @@ public final class ArrowFieldReader {
     accessor.close();
   }
 
-  public boolean isNullAt(int rowId) {
+  public boolean isNullAt() {
     return accessor.isNullAt(rowId);
   }
 
-  public boolean getBoolean(int rowId) {
-    return accessor.getBoolean(rowId);
+  public boolean getBoolean() {
+    boolean res = accessor.getBoolean(rowId);
+    rowId += 1;
+    return res;
   }
 
-  public byte getByte(int rowId) {
-    return accessor.getByte(rowId);
+  public byte getByte() {
+    byte res = accessor.getByte(rowId);
+    rowId += 1;
+    return res;
   }
 
-  public short getShort(int rowId) {
-    return accessor.getShort(rowId);
+  public short getShort() {
+    short res = accessor.getShort(rowId);
+    rowId += 1;
+    return res;
   }
 
-  public int getInt(int rowId) {
-    return accessor.getInt(rowId);
+  public int getInt() {
+    int res = accessor.getInt(rowId);
+    rowId += 1;
+    return res;
   }
 
-  public long getLong(int rowId) {
-    return accessor.getLong(rowId);
+  public long getLong() {
+    long res = accessor.getLong(rowId);
+    rowId += 1;
+    return res;
   }
 
-  public float getFloat(int rowId) {
-    return accessor.getFloat(rowId);
+  public float getFloat() {
+    float res = accessor.getFloat(rowId);
+    rowId += 1;
+    return res;
   }
 
-  public double getDouble(int rowId) {
-    return accessor.getDouble(rowId);
+  public double getDouble() {
+    double res = accessor.getDouble(rowId);
+    rowId += 1;
+    return res;
   }
 
-  public Decimal getDecimal(int rowId, int precision, int scale) {
-    if (isNullAt(rowId)) return null;
-    return accessor.getDecimal(rowId, precision, scale);
+  public Decimal getDecimal(int precision, int scale) {
+    Decimal res = accessor.getDecimal(rowId, precision, scale);
+    rowId += 1;
+    return res;
   }
 
-  public UTF8String getUTF8String(int rowId) {
-    if (isNullAt(rowId)) return null;
-    return accessor.getUTF8String(rowId);
+  public UTF8String getUTF8String() {
+    UTF8String res = accessor.getUTF8String(rowId);
+    rowId += 1;
+    return res;
   }
 
-  public byte[] getBinary(int rowId) {
-    if (isNullAt(rowId)) return null;
-    return accessor.getBinary(rowId);
+  public byte[] getBinary() {
+    byte[] res = accessor.getBinary(rowId);
+    rowId += 1;
+    return res;
   }
 
   /*public ColumnarArray getArray(int rowId) {

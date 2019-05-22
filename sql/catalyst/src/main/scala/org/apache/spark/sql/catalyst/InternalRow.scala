@@ -33,6 +33,8 @@ abstract class InternalRow extends SpecializedGetters with Serializable {
   // This is only use for test and will throw a null pointer exception if the position is null.
   def getString(ordinal: Int): String = getUTF8String(ordinal).toString
 
+  def getCount: Int = 1
+
   def setNullAt(i: Int): Unit
 
   /**

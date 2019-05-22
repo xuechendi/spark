@@ -39,7 +39,9 @@ import org.apache.spark.sql.types.DataTypes._
  * An Unsafe implementation of ColumnVector which is backed by raw memory instead of Java objects
  * through Arrow.
  */
-abstract class UnsafeColumnVector (schema: Array[String]) extends InternalRow {
+abstract class UnsafeColumnVector extends InternalRow {
+
+
   //////////////////////////////////////////////////////////////////////////////
   // Static methods
   //////////////////////////////////////////////////////////////////////////////
@@ -74,4 +76,12 @@ abstract class UnsafeColumnVector (schema: Array[String]) extends InternalRow {
   }
 
   def addRow(): Unit
+
+  def getRow(): InternalRow
+
+  def getSizeInBytes(): Int
+
+  def getCount(): Int
+
+  def writeToStream(out: DataOutputStream): Unit
 }
