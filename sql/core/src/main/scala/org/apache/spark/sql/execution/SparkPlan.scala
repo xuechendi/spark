@@ -33,9 +33,11 @@ import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.codegen.{Predicate => GenPredicate, _}
+import org.apache.spark.sql.catalyst.vectorized.arrow.ArrowFormatColumnVector
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.util.ThreadUtils
 
@@ -246,17 +248,25 @@ abstract class SparkPlan extends QueryPlan[SparkPlan] with Logging with Serializ
   private def getByteArrayRdd(n: Int = -1): RDD[(Long, Array[Byte])] = {
     execute().mapPartitionsInternal { iter =>
       var count = 0
-      val buffer = new Array[Byte](4 << 10)  // 4K
       val codec = CompressionCodec.createCodec(SparkEnv.get.conf)
       val bos = new ByteArrayOutputStream()
       val out = new DataOutputStream(codec.compressedOutputStream(bos))
       // `iter.hasNext` may produce one row and buffer it, we should only call it when the limit is
       // not hit.
       while ((n < 0 || count < n) && iter.hasNext) {
-        val row = iter.next().asInstanceOf[UnsafeRow]
-        out.writeInt(row.getSizeInBytes)
-        row.writeToStream(out, buffer)
-        count += 1
+        if (SQLConf.get.arrowEnabled) {
+          val row = iter.next().asInstanceOf[UnsafeColumnVector]
+          // we don't need to write size when using Arrow
+          // out.writeInt(row.getSizeInBytes)
+          row.writeToStream(out)
+          count += row.getCount()
+        } else {
+          val buffer = new Array[Byte](4 << 10)  // 4K
+          val row = iter.next().asInstanceOf[UnsafeRow]
+          out.writeInt(row.getSizeInBytes)
+          row.writeToStream(out, buffer)
+          count += row.getCount()
+        }
       }
       out.writeInt(-1)
       out.flush()
@@ -269,22 +279,46 @@ abstract class SparkPlan extends QueryPlan[SparkPlan] with Logging with Serializ
    * Decodes the byte arrays back to UnsafeRows and put them into buffer.
    */
   private def decodeUnsafeRows(bytes: Array[Byte]): Iterator[InternalRow] = {
+    decodeUnsafeRows(bytes, -1)
+  }
+
+  private def decodeUnsafeRows(bytes: Array[Byte], n: Int): Iterator[InternalRow] = {
     val nFields = schema.length
 
     val codec = CompressionCodec.createCodec(SparkEnv.get.conf)
     val bis = new ByteArrayInputStream(bytes)
     val ins = new DataInputStream(codec.compressedInputStream(bis))
+    val row: InternalRow = if (SQLConf.get.arrowEnabled) {
+      new ArrowFormatColumnVector(ins)
+    } else {
+      new UnsafeRow(nFields)
+    }
 
     new Iterator[InternalRow] {
+      var count: Int = 0
       private var sizeOfNextRow = ins.readInt()
-      override def hasNext: Boolean = sizeOfNextRow >= 0
+      private var nextRow: InternalRow = if (SQLConf.get.arrowEnabled) row.asInstanceOf[ArrowFormatColumnVector].getRow() else row
+      override def hasNext: Boolean = {
+        if (n != -1 && count > n) return false
+        if (SQLConf.get.arrowEnabled) {
+          nextRow != null
+        } else {
+          sizeOfNextRow >= 0
+        }
+      }
       override def next(): InternalRow = {
-        val bs = new Array[Byte](sizeOfNextRow)
-        ins.readFully(bs)
-        val row = new UnsafeRow(nFields)
-        row.pointTo(bs, sizeOfNextRow)
-        sizeOfNextRow = ins.readInt()
-        row
+        count += 1
+        if (SQLConf.get.arrowEnabled) {
+          var cur = nextRow
+          nextRow = row.asInstanceOf[ArrowFormatColumnVector].getRow()
+          cur
+        } else {
+          val bs = new Array[Byte](sizeOfNextRow)
+          ins.readFully(bs)
+          row.asInstanceOf[UnsafeRow].pointTo(bs, sizeOfNextRow)
+          sizeOfNextRow = ins.readInt()
+          row
+        }
       }
     }
   }
@@ -294,7 +328,6 @@ abstract class SparkPlan extends QueryPlan[SparkPlan] with Logging with Serializ
    */
   def executeCollect(): Array[InternalRow] = {
     val byteArrayRdd = getByteArrayRdd()
-
     val results = ArrayBuffer[InternalRow]()
     byteArrayRdd.collect().foreach { countAndBytes =>
       decodeUnsafeRows(countAndBytes._2).foreach(results.+=)
@@ -364,8 +397,7 @@ abstract class SparkPlan extends QueryPlan[SparkPlan] with Logging with Serializ
       val sc = sqlContext.sparkContext
       val res = sc.runJob(childRDD,
         (it: Iterator[Array[Byte]]) => if (it.hasNext) it.next() else Array.empty[Byte], p)
-
-      buf ++= res.flatMap(decodeUnsafeRows)
+      buf ++= res.flatMap(x => decodeUnsafeRows(x, n))
 
       partsScanned += p.size
     }
