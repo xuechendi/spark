@@ -662,7 +662,6 @@ case class WholeStageCodegenExec(child: SparkPlan)(val codegenStageId: Int)
       s"""
         protected void processNext() throws java.io.IOException {
           ${code.trim}
-          ${ctx.appendResultState()}
         }
        """, inlineToOuterClass = true)
 

@@ -125,8 +125,7 @@ private[sql] trait ColumnarBatchScan extends CodegenSupport {
     val localIdx = ctx.freshName("localIdx")
     val localEnd = ctx.freshName("localEnd")
     val numRows = ctx.freshName("numRows")
-    //val columnFields = ctx.addMutableState("DataType[]", "columnFields",
-    //  v => s"$v = {${output.map { case attr => attr.dataType) }.mkString(',')}};")
+    val getRow = ctx.addMutableState(CodeGenerator.JAVA_INT, "getRow")
     val shouldStop = if (parent.needStopCheck) {
       s"if (shouldStop()) { $idx = $rowidx + 1; return; }"
     } else {
@@ -136,7 +135,9 @@ private[sql] trait ColumnarBatchScan extends CodegenSupport {
        |if ($batch == null) {
        |  $nextBatchFuncName();
        |}
+       |int $getRow = 0;
        |while ($limitNotReachedCond $batch != null) {
+       |  $getRow = 1;
        |  int $numRows = $batch.numRows();
        |  int $localEnd = $numRows - $idx;
        |  for (int $localIdx = 0; $localIdx < $localEnd; $localIdx++) {
@@ -150,6 +151,9 @@ private[sql] trait ColumnarBatchScan extends CodegenSupport {
        |}
        |$scanTimeMetric.add($scanTimeTotalNs / (1000 * 1000));
        |$scanTimeTotalNs = 0;
+       |if ($getRow == 1) {
+       |  ${ctx.appendResultState()}
+       |}
      """.stripMargin
   }
 

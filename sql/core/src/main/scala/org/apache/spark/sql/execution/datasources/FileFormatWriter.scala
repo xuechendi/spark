@@ -38,7 +38,9 @@ import org.apache.spark.sql.catalyst.expressions.BindReferences.bindReferences
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, DateTimeUtils}
+import org.apache.spark.sql.catalyst.vectorized.arrow.ArrowFormatColumnVector
 import org.apache.spark.sql.execution.{ProjectExec, SortExec, SparkPlan, SQLExecution}
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.unsafe.types.UTF8String
 import org.apache.spark.util.{SerializableConfiguration, Utils}
@@ -270,7 +272,15 @@ object FileFormatWriter extends Logging {
       Utils.tryWithSafeFinallyAndFailureCallbacks(block = {
         // Execute the task to write rows out and commit the task.
         while (iterator.hasNext) {
-          dataWriter.write(iterator.next())
+          if (SQLConf.get.arrowEnabled) {
+            // if this internalRow is column based
+            val subIterator = iterator.next().asInstanceOf[ArrowFormatColumnVector].getRowIterator
+            while (subIterator.hasNext) {
+              dataWriter.write(subIterator.next())
+            }
+          } else {
+            dataWriter.write(iterator.next())
+          }
         }
         dataWriter.commit()
       })(catchBlock = {
