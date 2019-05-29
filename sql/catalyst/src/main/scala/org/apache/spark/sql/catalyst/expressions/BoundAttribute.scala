@@ -21,7 +21,9 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.errors.attachTree
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, CodeGenerator, ExprCode, FalseLiteral, JavaCode}
+import org.apache.spark.sql.catalyst.expressions.codegen._
 import org.apache.spark.sql.catalyst.expressions.codegen.Block._
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
 /**
@@ -81,7 +83,11 @@ object BindReferences extends Logging {
             sys.error(s"Couldn't find $a in ${input.attrs.mkString("[", ",", "]")}")
           }
         } else {
-          BoundReference(ordinal, a.dataType, input(ordinal).nullable)
+          if (SQLConf.get.arrowEnabled) {
+            BoundReference(ordinal, ColumnVectorProcessor, input(ordinal).nullable)
+          } else {
+            BoundReference(ordinal, a.dataType, input(ordinal).nullable)
+          }
         }
       }
     }.asInstanceOf[A] // Kind of a hack, but safe.  TODO: Tighten return type when possible.

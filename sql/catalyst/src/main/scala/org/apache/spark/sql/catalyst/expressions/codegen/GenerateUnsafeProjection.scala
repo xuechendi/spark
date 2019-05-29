@@ -319,6 +319,7 @@ object GenerateUnsafeProjection extends CodeGenerator[Seq[Expression], UnsafePro
     val evalSubexpr = ctx.subexprFunctions.mkString("\n")
 
     if (SQLConf.get.arrowEnabled) {
+      //ctx.setSupportsBatchProcess()
       val columnVectorWriterClass = classOf[UnsafeColumnVectorWriter].getName
       val columnVectorWriter = ctx.addMutableState(columnVectorWriterClass, "columnVectorWriter", v => s"$v = new $columnVectorWriterClass(new String[]{$columnTypes});")
 
@@ -326,14 +327,20 @@ object GenerateUnsafeProjection extends CodeGenerator[Seq[Expression], UnsafePro
         ctx, ctx.INPUT_ROW, exprEvals, exprSchemas,  columnVectorWriter, isTopLevel = true)
 
       ctx.setResultState(s"${columnVectorWriter}.getRow()")
+      val genCodeAddRow = if (ctx.isSupportsBatchProcess()) {
+        val rowCount = ctx.getBatchRowCount()
+        s"$columnVectorWriter.addRow($rowCount);"
+      } else {
+        s"$columnVectorWriter.addRow();"
+      }
 
       val code =
         code"""
            |$evalSubexpr
            |$writeExpressions
-           |$columnVectorWriter.addRow();
+           |$genCodeAddRow
          """.stripMargin
-      ExprCode(code, TrueLiteral, TrueLiteral)
+      ExprCode(code, TrueLiteral, JavaCode.expression(ctx.getResultState(), classOf[UnsafeColumnVector]))
     } else {
       val rowWriterClass = classOf[UnsafeRowWriter].getName
       val rowWriter = ctx.addMutableState(rowWriterClass, "rowWriter",

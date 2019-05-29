@@ -56,7 +56,11 @@ public final class UnsafeColumnVectorWriter extends UnsafeWriter {
    * the UnsafeColumnVector created at a constructor
    */
   public void addRow() {
-    columnVector.addRow();
+    columnVector.addRow(1);
+  }
+
+  public void addRow(int count) {
+    columnVector.addRow(count);
   }
 
   public UnsafeColumnVector getRow() {
@@ -106,6 +110,10 @@ public final class UnsafeColumnVectorWriter extends UnsafeWriter {
   @Override
   public void setNull8Bytes(int ordinal) {
     setNullAt(ordinal);
+  }
+
+  public void write(int ordinal, Object value) {
+    columnVector.setObject(ordinal, value);
   }
 
   @Override

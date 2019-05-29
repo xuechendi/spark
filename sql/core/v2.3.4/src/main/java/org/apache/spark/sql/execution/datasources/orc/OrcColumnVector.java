@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 
 import org.apache.hadoop.hive.ql.exec.vector.*;
 
+import org.apache.spark.sql.catalyst.expressions.codegen.ColumnVectorProcessor;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.sql.types.TimestampType;
@@ -64,6 +65,20 @@ public class OrcColumnVector extends org.apache.spark.sql.vectorized.ColumnVecto
       decimalData = (DecimalColumnVector) vector;
     } else if (vector instanceof TimestampColumnVector) {
       timestampData = (TimestampColumnVector) vector;
+    } else {
+      throw new UnsupportedOperationException();
+    }
+  }
+
+  public ColumnVectorProcessor createProcessor() {
+    if (baseData instanceof LongColumnVector) {
+      return new ColumnVectorProcessor(((LongColumnVector)baseData));
+    } else if (baseData instanceof DoubleColumnVector) {
+      return new ColumnVectorProcessor(((DoubleColumnVector)baseData));
+    } else if (baseData instanceof BytesColumnVector) {
+      return new ColumnVectorProcessor(((BytesColumnVector)baseData));
+    } else if (baseData instanceof DecimalColumnVector) {
+      return new ColumnVectorProcessor(((DecimalColumnVector)baseData));
     } else {
       throw new UnsupportedOperationException();
     }

@@ -17,6 +17,7 @@
 package org.apache.spark.sql.vectorized;
 
 import org.apache.spark.annotation.Evolving;
+import org.apache.spark.sql.catalyst.expressions.codegen.ColumnVectorProcessor;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.unsafe.types.CalendarInterval;
@@ -84,6 +85,11 @@ public abstract class ColumnVector implements AutoCloseable {
    * if the slot for rowId is null.
    */
   public abstract boolean getBoolean(int rowId);
+
+  public ColumnVectorProcessor createProcessor() {
+    ColumnVectorProcessor processor = new ColumnVectorProcessor(null);
+    return processor;
+  }
 
   /**
    * Gets boolean type values from [rowId, rowId + count). The return values for the null slots

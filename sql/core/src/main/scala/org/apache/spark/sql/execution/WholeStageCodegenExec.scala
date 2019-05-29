@@ -144,6 +144,7 @@ trait CodegenSupport extends SparkPlan {
    * Note that `outputVars` and `row` can't both be null.
    */
   final def consume(ctx: CodegenContext, outputVars: Seq[ExprCode], row: String = null): String = {
+    logInfo(s"consume: parent is $parent")
     val inputVarsCandidate =
       if (outputVars != null) {
         assert(outputVars.length == output.length)

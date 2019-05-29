@@ -42,13 +42,13 @@ private[sql] trait ColumnarBatchScan extends CodegenSupport {
    * Generate [[ColumnVector]] expressions for our parent to consume as rows.
    * This is called once per [[ColumnarBatch]].
    */
-  private def genCodeColumnVector(
+  private def genCodeColumnVectorInRow(
       ctx: CodegenContext,
       columnVar: String,
       ordinal: String,
       dataType: DataType,
       nullable: Boolean): ExprCode = {
-    val javaType = CodeGenerator.javaType(dataType)
+    var javaType = CodeGenerator.javaType(dataType)
     val value = CodeGenerator.getValueFromVector(columnVar, dataType, ordinal)
     val isNullVar = if (nullable) {
       JavaCode.isNullVariable(ctx.freshName("isNull"))
@@ -69,7 +69,25 @@ private[sql] trait ColumnarBatchScan extends CodegenSupport {
   }
 
   /**
+   * Generate [[ColumnVector]] expressions for our parent to consume as rows.
+   * This is called once per [[ColumnarBatch]].
+   */
+  private def genCodeColumnVectorInBatch(
+      ctx: CodegenContext,
+      columnVar: String): ExprCode = {
+    var javaType = classOf[ColumnVectorProcessor].getName
+    val value = code"$columnVar.createProcessor()"
+    val valueVar = ctx.freshName("value")
+    val code =
+      code"""
+        |$javaType $valueVar = $value;
+      """.stripMargin
+    ExprCode(code, FalseLiteral, JavaCode.variable(valueVar, classOf[ColumnVectorProcessor]))
+  }
+
+  /**
    * Produce code to process the input iterator as [[ColumnarBatch]]es.
+  private var resultState: String = _
    * This produces an [[UnsafeRow]] for each row in each batch.
    */
   // TODO: return ColumnarBatch.Rows instead
@@ -119,9 +137,17 @@ private[sql] trait ColumnarBatchScan extends CodegenSupport {
 
     ctx.currentVars = null
     val rowidx = ctx.freshName("rowIdx")
-    val columnsBatchInput = (output zip colVars).map { case (attr, colVar) =>
-      genCodeColumnVector(ctx, colVar, rowidx, attr.dataType, attr.nullable)
+    ctx.setBatchRowCount(rowidx)
+
+    ctx.setSupportsBatchProcess()
+    val columnsBatchInput = if (ctx.isSupportsBatchProcess()) {
+      colVars.map {colVar => genCodeColumnVectorInBatch(ctx, colVar)}
+    } else {
+      (output zip colVars).map { case (attr, colVar) =>
+        genCodeColumnVectorInRow(ctx, colVar, rowidx, attr.dataType, attr.nullable)
+      }
     }
+    val consume_code = consume(ctx, columnsBatchInput).trim
     val localIdx = ctx.freshName("localIdx")
     val localEnd = ctx.freshName("localEnd")
     val numRows = ctx.freshName("numRows")
@@ -131,6 +157,24 @@ private[sql] trait ColumnarBatchScan extends CodegenSupport {
     } else {
       "// shouldStop check is eliminated"
     }
+    val processBatch = if(ctx.isSupportsBatchProcess()) {
+      s"""
+      |int $rowidx = $batch.numRows();
+      |${consume_code}
+      |$shouldStop
+      """
+    } else {
+      s"""
+       |int $numRows = $batch.numRows();
+       |int $localEnd = $numRows - $idx;
+       |for (int $localIdx = 0; $localIdx < $localEnd; $localIdx++) {
+       |  int $rowidx = $idx + $localIdx;
+       |  ${consume_code}
+       |  $shouldStop
+       |}
+       |$idx = $numRows;
+      """.stripMargin
+    }
     s"""
        |if ($batch == null) {
        |  $nextBatchFuncName();
@@ -138,21 +182,14 @@ private[sql] trait ColumnarBatchScan extends CodegenSupport {
        |int $getRow = 0;
        |while ($limitNotReachedCond $batch != null) {
        |  $getRow = 1;
-       |  int $numRows = $batch.numRows();
-       |  int $localEnd = $numRows - $idx;
-       |  for (int $localIdx = 0; $localIdx < $localEnd; $localIdx++) {
-       |    int $rowidx = $idx + $localIdx;
-       |    ${consume(ctx, columnsBatchInput).trim}
-       |    $shouldStop
-       |  }
-       |  $idx = $numRows;
+       |  $processBatch
        |  $batch = null;
        |  $nextBatchFuncName();
        |}
        |$scanTimeMetric.add($scanTimeTotalNs / (1000 * 1000));
        |$scanTimeTotalNs = 0;
        |if ($getRow == 1) {
-       |  ${ctx.appendResultState()}
+       |  append(${ctx.getResultState()});
        |}
      """.stripMargin
   }

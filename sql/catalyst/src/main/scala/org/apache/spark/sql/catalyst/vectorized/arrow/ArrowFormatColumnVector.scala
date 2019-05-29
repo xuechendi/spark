@@ -12,16 +12,17 @@ import org.apache.arrow.vector.ipc.{ArrowStreamReader, ArrowStreamWriter}
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions._;
+import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.codegen.ColumnVectorProcessor
 import org.apache.spark.sql.catalyst.vectorized.arrow.{ArrowFieldReader, ArrowFieldWriter, ArrowUtils}
 import org.apache.spark.sql.types._
-import org.apache.spark.unsafe.array.ByteArrayMethods;
-import org.apache.spark.unsafe.bitset.BitSetMethods;
-import org.apache.spark.unsafe.hash.Murmur3_x86_32;
-import org.apache.spark.unsafe.types.CalendarInterval;
-import org.apache.spark.unsafe.types.UTF8String;
+import org.apache.spark.unsafe.array.ByteArrayMethods
+import org.apache.spark.unsafe.bitset.BitSetMethods
+import org.apache.spark.unsafe.hash.Murmur3_x86_32
+import org.apache.spark.unsafe.types.CalendarInterval
+import org.apache.spark.unsafe.types.UTF8String
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.catalyst.util.ArrayData;
+import org.apache.spark.sql.catalyst.util.ArrayData
 import org.apache.spark.util.Utils
 
 class ArrowFormatColumnVector extends UnsafeColumnVector with Logging {
@@ -82,8 +83,8 @@ class ArrowFormatColumnVector extends UnsafeColumnVector with Logging {
     }.toSeq
   }
 
-  def addRow(): Unit = {
-    rowId += 1
+  def addRow(count: Int = 1): Unit = {
+    rowId += count
     root.setRowCount(rowId)
   }
   
@@ -130,6 +131,16 @@ class ArrowFormatColumnVector extends UnsafeColumnVector with Logging {
   override def setNullAt(ordinal: Int): Unit = {
     assertIndexIsValid(ordinal)
     arrowColumnVectorsWriter(ordinal).setNull()
+  }
+
+  def setObject(ordinal: Int, value: Any): Unit = {
+    assertIndexIsValid(ordinal)
+    value match {
+      case op: ColumnVectorProcessor => {
+        op.processTo(arrowColumnVectorsWriter(ordinal))
+      }
+      case _ => throw new UnsupportedOperationException(s"Unsupported data type") 
+    }
   }
 
   override def setInt(ordinal: Int, value: Int): Unit = {

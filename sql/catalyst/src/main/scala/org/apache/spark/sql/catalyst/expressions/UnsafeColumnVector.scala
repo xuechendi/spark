@@ -75,7 +75,7 @@ abstract class UnsafeColumnVector extends InternalRow {
     mutableFieldTypes.contains(dt) || dt.isInstanceOf[org.apache.spark.sql.types.DecimalType]
   }
 
-  def addRow(): Unit
+  def addRow(count: Int): Unit
 
   def getRow(): InternalRow
 

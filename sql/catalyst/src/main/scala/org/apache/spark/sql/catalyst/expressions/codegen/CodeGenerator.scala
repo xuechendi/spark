@@ -188,6 +188,8 @@ class CodegenContext {
   // Tracks the names of all the mutable states.
   private val mutableStateNames: mutable.HashSet[String] = mutable.HashSet.empty
   private var resultState: String = _
+  private var supportsBatchProcess: Boolean = false
+  private var batchRowCountName: String = _
 
   /**
    * This class holds a set of names of mutableStateArrays that is used for compacting mutable
@@ -296,6 +298,26 @@ class CodegenContext {
     resultState = variableName
   }
 
+  def setSupportsBatchProcess(): Unit = {
+    supportsBatchProcess = true
+  }
+
+  def isSupportsBatchProcess(): Boolean = {
+    supportsBatchProcess
+  }
+
+  def setBatchRowCount(name: String): Unit = {
+    batchRowCountName = name
+  }
+
+  def getBatchRowCount(): String = {
+    if (batchRowCountName != null) {
+      batchRowCountName
+    } else {
+      s"0"
+    }
+  }
+
   /**
    * Add an immutable state as a field to the generated class only if it does not exist yet a field
    * with that name. This helps reducing the number of the generated class' fields, since the same
@@ -387,9 +409,9 @@ class CodegenContext {
     else return false
   }
 
-  def appendResultState(): String = {
+  def getResultState(): String = {
     if (isSetResultState()) {
-      s"append($resultState);"
+      resultState
     } else {
       s""
     }
@@ -1286,6 +1308,7 @@ object CodeGenerator extends Logging {
       classOf[InternalRow].getName,
       classOf[UnsafeRow].getName,
       classOf[ArrowFormatColumnVector].getName,
+      classOf[ColumnVectorProcessor].getName,
       classOf[UTF8String].getName,
       classOf[Decimal].getName,
       classOf[CalendarInterval].getName,
