@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution.vectorized;
 
 import io.netty.buffer.ArrowBuf;
 import java.lang.*;
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.*;
@@ -212,9 +213,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
 
   @Override
   public void close() {
-    //LOG.info("close " + this);
     super.close();
-    // TODO: close Arrow Allocated Memory
     if (childColumns != null) {
       for (int i = 0; i < childColumns.length; i++) {
         childColumns[i].close();
@@ -1386,6 +1385,17 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
       super(vector);
       this.writer = vector;
     }
+
+    @Override
+    final void setNull(int rowId) {
+      writer.setNull(rowId);
+    }
+
+    @Override
+    final void setInt(int rowId, int value) {
+      BigDecimal v = new BigDecimal(value);
+      writer.setSafe(rowId, v.setScale(writer.getScale()));
+    }
   }
 
   private static class StringWriter extends ArrowVectorWriter {
@@ -1397,6 +1407,11 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
       super(vector);
       this.writer = vector;
     }
+
+    @Override
+    final void setNull(int rowId) {
+      writer.setNull(rowId);
+    }
   }
 
   private static class BinaryWriter extends ArrowVectorWriter {
@@ -1406,6 +1421,11 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
     BinaryWriter(VarBinaryVector vector) {
       super(vector);
       this.writer = vector;
+    }
+
+    @Override
+    final void setNull(int rowId) {
+      writer.setNull(rowId);
     }
   }
 
@@ -1417,6 +1437,11 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
       super(vector);
       this.writer = vector;
     }
+
+    @Override
+    final void setNull(int rowId) {
+      writer.setNull(rowId);
+    }
   }
 
   private static class TimestampWriter extends ArrowVectorWriter {
@@ -1426,6 +1451,11 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
     TimestampWriter(TimeStampMicroTZVector vector) {
       super(vector);
       this.writer = vector;
+    }
+
+    @Override
+    final void setNull(int rowId) {
+      writer.setNull(rowId);
     }
   }
 
